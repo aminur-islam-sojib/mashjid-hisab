@@ -5,7 +5,7 @@ Each task: plan first, wait for approval, implement, test, /ship.
 
 ## Track A: Trust (do first)
 
-- [ ] **T01 Pending-count consistency** (backend + frontend)
+- [x] **T01 Pending-count consistency** (backend + frontend)
   Why: AUDIT s3. Dashboard card/banner count includes OPEN counting sessions, but /transactions/pending does not, so the user sees "1" then an empty queue.
   Do: Approvals queue = PENDING donations + PENDING/PENDING_APPROVAL expenses. Counting sessions to verify are returned separately as `countingSessionsToVerify`. Extract ONE shared where-clause/helper used by both /reports/dashboard and getPendingTransactions. Dashboard strip lists each non-zero item with its own link; hidden if all zero.
   Done when: badge == rows in queue (test); counting session shown separately; copy matches data.
