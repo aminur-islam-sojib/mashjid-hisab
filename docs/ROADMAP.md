@@ -20,14 +20,14 @@ Each task: plan first, wait for approval, implement, test, /ship.
   Do: `Idempotency-Key` header on POSTs that create or change financial records (donations, expenses, transfers, due payments, collections verify, reconciliations, approve/reject). Store key + request hash + stored response, unique per (mosque, user, key), 24h TTL. Same key + same body returns the stored response; same key + different body returns 409. Frontend: generate a key when a form opens, send it, disable submit while pending.
   Done when: tests prove a repeated request creates one record; UI cannot double-submit.
 
-- [ ] **T04 Role-aware navigation and route guards** (frontend)
+- [x] **T04 Role-aware navigation and route guards** (frontend)
   Why: AUDIT risk #9. Members can open /accounts and only then get a 403 error.
   Do: Filter sidebar by role using the target nav in docs/UX-PRINCIPLES.md and docs/SIMPLIFY.md. Add a guard in the mosque layout that redirects before render when the role cannot access the route.
   Done when: each role sees only its items; direct URL to a forbidden page redirects to the role's home.
 
 ## Track B: UX redesign (Order: T06 -> T05 -> T07 -> T07B -> T08...)
 
-- [ ] **T06 Sidebar regroup + Approvals page** (frontend + backend fix)
+- [x] **T06 Sidebar regroup + Approvals page** (frontend + backend fix)
   Why: Nav has 18 unorganized items; approvals is buried under transactions tab; box-counting roles have backend/frontend mismatch.
   Do:
   1. Sidebar regrouping: Organize into DAILY WORK, PEOPLE, RECORDS, and collapsed SETUP. Include COMMITTEE role in nav matrix (read-only oversight). Restrict items: Admin/Treasurer (5 core areas), Staff (5 items), Member (3 items). Mobile: bottom bar (Home, Donations, Expenses, More).
