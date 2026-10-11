@@ -15,7 +15,7 @@ Each task: plan first, wait for approval, implement, test, /ship.
   Do: Enforce invariant sum(account balances) == sum(fund balances). Propose a design in the plan (recommended: creating an account with openingBalance requires `openingFundId`, default General, and the fund side records it). Provide a one-time fix for the existing mosque (show SQL, wait for approval; pg_dump first). Reports API returns `unallocated`. UI shows an "Unallocated" row only when it is not zero, with an explanation and an Allocate action.
   Done when: new account with opening balance keeps the invariant (test); existing mosque shows 0 unallocated after the approved fix.
 
-- [ ] **T03 Idempotency and double-submit protection** (backend + frontend)
+- [x] **T03 Idempotency and double-submit protection** (backend + frontend)
   Why: AUDIT risk #1. Double-click or retry creates duplicate donations/expenses/transfers.
   Do: `Idempotency-Key` header on POSTs that create or change financial records (donations, expenses, transfers, due payments, collections verify, reconciliations, approve/reject). Store key + request hash + stored response, unique per (mosque, user, key), 24h TTL. Same key + same body returns the stored response; same key + different body returns 409. Frontend: generate a key when a form opens, send it, disable submit while pending.
   Done when: tests prove a repeated request creates one record; UI cannot double-submit.
