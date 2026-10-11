@@ -10,7 +10,7 @@ Each task: plan first, wait for approval, implement, test, /ship.
   Do: Approvals queue = PENDING donations + PENDING/PENDING_APPROVAL expenses. Counting sessions to verify are returned separately as `countingSessionsToVerify`. Extract ONE shared where-clause/helper used by both /reports/dashboard and getPendingTransactions. Dashboard strip lists each non-zero item with its own link; hidden if all zero.
   Done when: badge == rows in queue (test); counting session shown separately; copy matches data.
 
-- [ ] **T02 Unallocated money** (backend + frontend)
+- [x] **T02 Unallocated money** (backend + frontend)
   Why: AUDIT s4. Account.openingBalance has no fund counterpart; sum(accounts) != sum(funds) by the opening balance.
   Do: Enforce invariant sum(account balances) == sum(fund balances). Propose a design in the plan (recommended: creating an account with openingBalance requires `openingFundId`, default General, and the fund side records it). Provide a one-time fix for the existing mosque (show SQL, wait for approval; pg_dump first). Reports API returns `unallocated`. UI shows an "Unallocated" row only when it is not zero, with an explanation and an Allocate action.
   Done when: new account with opening balance keeps the invariant (test); existing mosque shows 0 unallocated after the approved fix.
