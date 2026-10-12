@@ -63,3 +63,11 @@ Per role: STAFF sees Dashboard, Donations, Expenses, Box counting, My giving. ME
 - [ ] Works at 390px without horizontal scroll?
 - [ ] Bangla text renders correctly; no hard-coded strings?
 - [ ] Can a double-tap create a duplicate?
+
+## Complexity budget (every screen must obey)
+- The page header answers ONE user question, in plain words.
+- 1 primary action. Max 3 headline numbers. Max 5 rows shown by default ("Show all" for the rest).
+- Filters are preset chips (This month / Last month / This year), never raw date pickers by default.
+- Forms: max 3 visible fields; the rest behind "More details".
+- Zero jargon from the terms table. No setting, option or column that the default user doesn't need.
+- Before coding any redesign, show a static mockup or screenshot and wait for approval.
