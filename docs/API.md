@@ -626,6 +626,14 @@ Public side of invite links → [§7.24](#724-public-endpoints-no-login).
 | 8 | POST | `/reports/exports` | FIN-OPS | Body: `reportType` req · `format` req (CSV/XLSX/PDF) · `parameters` opt (object). **201** |
 | 9 | GET | `/reports/exports/:exportId` | Member (requester, or ADMIN/TREASURER) | Export job status / result |
 
+Note on `GET /reports/dashboard`: Returns executive financial metrics, balances, pending approvals, dues rates, plus dynamic dashboard properties:
+- `kpi`: `totalMembers`, `membersTrendPercentage`, `monthlyIncome`, `incomeTrendPercentage`, `upcomingEventsCount`, `totalFacilitiesCount`.
+- `donationsTrend`: `currentMonthIncome`, `lastMonthIncome`, `trendPercentage`, `dataPoints[]` (cumulative milestone points across the month).
+- `recentMembers`: 5 most recently created memberships (`id`, `name`, `email`, `joinedAt`, `status`, `role`).
+- `fundAllocation`: `totalBalance`, `overallAllocationPercentage`, `funds[]` (`name`, `balance`, `percentage`).
+- `upcomingEvents`: active campaigns with `title`, `startDate`, `endDate`, `targetAmount`, `raisedAmount`.
+- `quickStats`: `boxCollectionsCount`, `boxCollectionsTotal`, `activeDonorsCount`, `activeStaffCount`, `activeCampaignsCount`.
+
 ---
 
 ### 7.21 Accounting Periods
