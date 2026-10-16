@@ -628,7 +628,7 @@ Public side of invite links → [§7.24](#724-public-endpoints-no-login).
 
 Note on `GET /reports/dashboard`: Returns executive financial metrics, balances, pending approvals, dues rates, plus dynamic dashboard properties:
 - `kpi`: `totalMembers`, `membersTrendPercentage`, `monthlyIncome`, `incomeTrendPercentage`, `upcomingEventsCount`, `totalFacilitiesCount`.
-- `donationsTrend`: `currentMonthIncome`, `lastMonthIncome`, `trendPercentage`, `dataPoints[]` (cumulative milestone points across the month).
+- `donationsTrend`: `currentMonthIncome`, `formattedCurrentMonthIncome`, `currentMonthLabel`, `lastMonthIncome`, `formattedLastMonthIncome`, `lastMonthLabel`, `trendPercentage`, `lastMonthTrendPercentage`, `currentMonthPoints[]`, `lastMonthPoints[]`, `dataPoints[]` (milestone points with cumulative amount and label).
 - `recentMembers`: 5 most recently created memberships (`id`, `name`, `email`, `joinedAt`, `status`, `role`).
 - `fundAllocation`: `totalBalance`, `overallAllocationPercentage`, `funds[]` (`name`, `balance`, `percentage`).
 - `upcomingEvents`: active campaigns with `title`, `startDate`, `endDate`, `targetAmount`, `raisedAmount`.
