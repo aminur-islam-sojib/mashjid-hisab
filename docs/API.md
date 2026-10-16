@@ -281,16 +281,22 @@ Legend for the **Success** column: `200` unless stated; creates return `201`.
 
 | # | Method | Route | Access | Purpose |
 |---|---|---|---|---|
-| 1 | GET | `/api/mosques` | Auth | List mosques the caller is an ACTIVE member of (switcher). Query: `search` |
+| 1 | GET | `/api/mosques` | Auth | List mosques the caller is a member of (switcher). Query: `search`, `includeArchived` |
 | 2 | POST | `/api/mosques` | Auth | Create mosque + caller becomes ACTIVE `MOSQUE_ADMIN` (same transaction). **201** |
 | 3 | GET | `/api/mosques/:mosqueId` | Member | Mosque settings |
 | 4 | PATCH | `/api/mosques/:mosqueId` | ADMIN | Update settings |
-| 5 | POST | `/api/mosques/:mosqueId/archive` | ADMIN | Soft-delete. Blocked if pending invites or non-zero account balances |
+| 5 | POST | `/api/mosques/:mosqueId/archive` | SUPER_ADMIN | Soft-delete. Blocked if pending invites or non-zero account balances |
+| 6 | POST | `/api/mosques/:mosqueId/unarchive` | SUPER_ADMIN | Restore soft-deleted mosque (`isArchived: false`, `archivedAt: null`) |
+| 7 | POST | `/api/mosques/:mosqueId/archive-request` | ADMIN | Submit archive request to Super Admin (`reason` opt, max 500 chars) |
+| 8 | DELETE | `/api/mosques/:mosqueId/archive-request` | ADMIN | Cancel pending archive request |
+| 9 | POST | `/api/mosques/:mosqueId/archive-request/reject` | SUPER_ADMIN | Reject/dismiss pending archive request |
+| 10 | GET | `/api/mosques/super-admin/archive-requests` | SUPER_ADMIN | List all mosques with pending archive requests |
 
 | Endpoint | Body |
 |---|---|
 | Create | `name` req (2–100) · `slug` opt (3–60, lowercase alnum + hyphens) · `address` opt (≤255) · `timezone` opt (IANA, e.g. `Asia/Dhaka`) · `fiscalYearStart` opt (1–12) |
 | Update | `name` · `address` · `timezone` · `fiscalYearStart` (1–12) · `confirmFiscalYearChange` (`true` needed to change mid-year; alias `confirm`) · `isTransparencyPageEnabled` (alias `publicTransparency`) |
+| Archive Request | `reason` opt (string, max 500 chars) |
 
 ---
 
@@ -685,7 +691,7 @@ Prefix `/api/public`. Transparency routes return data only if the mosque enabled
 |---|---|---|---|---|
 | Auth | 9 | | Pledges | 4 |
 | Users | 2 | | Chanda plans | 7 |
-| Mosques | 5 | | Dues | 6 |
+| Mosques | 6 | | Dues | 6 |
 | Members | 7 | | Collections | 4 |
 | Funds | 5 | | Me | 4 |
 | Accounts | 6 | | Reports | 9 |
@@ -695,7 +701,7 @@ Prefix `/api/public`. Transparency routes return data only if the mosque enabled
 | Donations | 6 | | Public | 10 |
 | Expenses | 5 | | Health (`GET /`) | 1 |
 | Transfers | 4 | | | |
-| Transactions | 5 | | **Total unique handlers** | **≈ 147** |
+| Transactions | 5 | | **Total unique handlers** | **≈ 148** |
 | Campaigns | 6 | | | |
 
 (Flat `/api/<resource>` aliases are counted once; they would roughly double the raw URL count.)
@@ -704,7 +710,7 @@ Prefix `/api/public`. Transparency routes return data only if the mosque enabled
 
 ## 9. Error Codes Seen in the Code
 
-`AUTH_UNAUTHORIZED` · `AUTH_TOKEN_EXPIRED` · `AUTH_TOKEN_INVALID` · `AUTH_USER_NOT_FOUND` · `MUST_CHANGE_PASSWORD` · `ACCOUNT_INACTIVE` · `FORBIDDEN` · `FORBIDDEN_ROLE` · `FORBIDDEN_SUPER_ADMIN_REQUIRED` · `FORBIDDEN_FIELD` · `INVALID_MOSQUE_ID` · `MOSQUE_NOT_FOUND` · `LAST_ADMIN_PROTECTED` · `TRANSACTION_IMMUTABLE` · `SELF_APPROVAL_NOT_ALLOWED` · `CAMPAIGN_ALREADY_CLOSED` · `CAMPAIGN_FUND_LOCKED` · `FAMILY_MEMBER_LINKED` · `DUPLICATE_RESOURCE` · `RATE_LIMIT_EXCEEDED` · `INVALID_JSON_BODY` · `FILE_TOO_LARGE` · `INVALID_FILE_TYPE` · `EMPTY_FILE` · `INVALID_BASE64` · `NO_FILE_PROVIDED` · `INVALID_ATTACHMENT_ID` · `INVALID_SLUG` / `INVALID_MOSQUE_SLUG` · `INVALID_GROUP_BY` · `INVALID_YEAR` · `INTERNAL_SERVER_ERROR`
+`AUTH_UNAUTHORIZED` · `AUTH_TOKEN_EXPIRED` · `AUTH_TOKEN_INVALID` · `AUTH_USER_NOT_FOUND` · `MUST_CHANGE_PASSWORD` · `ACCOUNT_INACTIVE` · `FORBIDDEN` · `FORBIDDEN_ROLE` · `FORBIDDEN_SUPER_ADMIN_REQUIRED` · `FORBIDDEN_FIELD` · `INVALID_MOSQUE_ID` · `MOSQUE_NOT_FOUND` · `MOSQUE_NOT_ARCHIVED` · `MOSQUE_ALREADY_ARCHIVED` · `MOSQUE_ARCHIVE_REQUEST_ALREADY_PENDING` · `NO_PENDING_ARCHIVE_REQUEST` · `MEMBERSHIP_SUSPENDED` · `MEMBERSHIP_PENDING` · `MEMBERSHIP_REJECTED` · `LAST_ADMIN_PROTECTED` · `TRANSACTION_IMMUTABLE` · `SELF_APPROVAL_NOT_ALLOWED` · `CAMPAIGN_ALREADY_CLOSED` · `CAMPAIGN_FUND_LOCKED` · `FAMILY_MEMBER_LINKED` · `DUPLICATE_RESOURCE` · `RATE_LIMIT_EXCEEDED` · `INVALID_JSON_BODY` · `FILE_TOO_LARGE` · `INVALID_FILE_TYPE` · `EMPTY_FILE` · `INVALID_BASE64` · `NO_FILE_PROVIDED` · `INVALID_ATTACHMENT_ID` · `INVALID_SLUG` / `INVALID_MOSQUE_SLUG` · `INVALID_GROUP_BY` · `INVALID_YEAR` · `INTERNAL_SERVER_ERROR`
 
 ---
 
