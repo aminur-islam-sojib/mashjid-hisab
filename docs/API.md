@@ -370,8 +370,9 @@ Body — create: `name` req (2–100) · `type` (AccountType) · `accountNumber`
 | 3 | GET | `/categories/:categoryId` | OPERATIONAL | Get one |
 | 4 | PATCH | `/categories/:categoryId` | FIN-OPS | Update name / fundId (no history rewrite) |
 | 5 | POST | `/categories/:categoryId/archive` | ADMIN | Archive |
+| 6 | POST | `/categories/seed` | FIN-OPS | Seed standard income & expense categories (idempotent) |
 
-Body — create: `name` req (2–100) · `type` req (`INCOME`/`EXPENSE`) · `fundId` opt (restricts category to one fund). Update: `name` · `fundId` (nullable).
+Body — create: `name` req (2–100) · `type` req (`INCOME`/`EXPENSE`) · `fundId` opt (restricts category to one fund). Update: `name` · `fundId` (nullable). Seed: empty body. Idempotently provisions 12 Income and 13 Expense standard mosque categories, auto-associating Zakat and Construction categories with corresponding mosque funds. Returns `{ createdCount, skippedCount, totalCategories }`.
 
 ---
 
