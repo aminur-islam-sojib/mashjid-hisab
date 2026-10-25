@@ -2,9 +2,6 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-# Install dependencies needed for native modules
-RUN apk add --no-cache libc6-compat
-
 # Install node dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
