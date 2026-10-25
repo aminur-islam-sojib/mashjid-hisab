@@ -12,7 +12,7 @@ export const REFRESH_COOKIE_NAME = "refreshToken" as const;
 const BASE_COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,                                    // inaccessible to document.cookie (XSS-safe)
   secure: config.NODE_ENV === "production",          // HTTPS only in production
-  sameSite: config.NODE_ENV === "production" ? "strict" : "lax",
+  sameSite: config.NODE_ENV === "production" ? "none" : "lax", // "none" enables cross-origin cookies between Vercel and Render
 };
 
 /**
