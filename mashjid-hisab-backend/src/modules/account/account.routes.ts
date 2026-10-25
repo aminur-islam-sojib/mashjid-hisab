@@ -1,0 +1,112 @@
+// ---------------------------------------------------------------------------
+// Account Router — Tenant-Scoped Account Management
+// ---------------------------------------------------------------------------
+
+import { Router } from "express";
+import { authenticate } from "../../middlewares/auth.middleware.js";
+import {
+  requireMosqueMembership,
+  FINANCIAL_OPERATOR_ROLES,
+  OVERSIGHT_ROLES,
+} from "../../middlewares/mosque.middleware.js";
+import { Role } from "../../../generated/prisma/client.js";
+import {
+  createAccountHandler,
+  getAccountByIdHandler,
+  getMosqueAccountsHandler,
+  updateAccountHandler,
+  archiveAccountHandler,
+} from "./account.controller.js";
+import { reconcileAccountHandler } from "../report/report.controller.js";
+import { idempotency } from "../../middlewares/idempotency.middleware.js";
+
+const accountRouter: Router = Router({ mergeParams: true });
+
+/**
+ * POST /api/mosques/:mosqueId/accounts
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER
+ *
+ * Creates an Account (name, type, accountNumber, openingBalance).
+ * openingBalance is write-once in practice.
+ */
+accountRouter.post(
+  "/",
+  authenticate,
+  requireMosqueMembership(...FINANCIAL_OPERATOR_ROLES),
+  idempotency(),
+  createAccountHandler,
+);
+
+/**
+ * GET /api/mosques/:mosqueId/accounts
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER, COMMITTEE_MEMBER
+ *
+ * Lists active Accounts. Pass ?includeArchived=true for the settings screen.
+ * Sensitive information (accountNumber) is included here.
+ */
+accountRouter.get(
+  "/",
+  authenticate,
+  requireMosqueMembership(...OVERSIGHT_ROLES),
+  getMosqueAccountsHandler,
+);
+
+/**
+ * GET /api/mosques/:mosqueId/accounts/:accountId
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER, COMMITTEE_MEMBER
+ *
+ * Retrieves a single Account by its ID.
+ */
+accountRouter.get(
+  "/:accountId",
+  authenticate,
+  requireMosqueMembership(...OVERSIGHT_ROLES),
+  getAccountByIdHandler,
+);
+
+/**
+ * PATCH /api/mosques/:mosqueId/accounts/:accountId
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER
+ *
+ * Updates name/type/accountNumber.
+ * Never updates openingBalance after the account has any transactions.
+ */
+accountRouter.patch(
+  "/:accountId",
+  authenticate,
+  requireMosqueMembership(...FINANCIAL_OPERATOR_ROLES),
+  updateAccountHandler,
+);
+
+/**
+ * POST /api/mosques/:mosqueId/accounts/:accountId/archive
+ * Access: Authenticated + MOSQUE_ADMIN
+ *
+ * Soft-deletes the account (sets isArchived: true).
+ * Blocks if the account has a non-zero balance.
+ */
+accountRouter.post(
+  "/:accountId/archive",
+  authenticate,
+  requireMosqueMembership(Role.MOSQUE_ADMIN),
+  archiveAccountHandler,
+);
+
+/**
+ * POST /api/mosques/:mosqueId/accounts/:accountId/reconciliations AND POST /api/accounts/:accountId/reconciliations
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER
+ *
+ * Compares system balance with physical/statement realBalance.
+ * Creates an explicit adjustment entry (Donation for surplus, Expense for shortfall).
+ */
+accountRouter.post(
+  "/:accountId/reconciliations",
+  authenticate,
+  requireMosqueMembership(...FINANCIAL_OPERATOR_ROLES),
+  idempotency(),
+  reconcileAccountHandler,
+);
+
+export default accountRouter;
+
+

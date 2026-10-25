@@ -1,0 +1,576 @@
+"use client";
+
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Settings,
+  Building2,
+  Globe,
+  Lock,
+  ExternalLink,
+  AlertTriangle,
+  AlertCircle,
+  Clock,
+  Send,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
+import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/providers/auth-provider";
+import { useMosque } from "@/providers/mosque-provider";
+import { ADMIN_ONLY_ROLES } from "@/lib/roles";
+
+export default function MosqueSettingsPage() {
+  const params = useParams();
+  const mosqueId = params["mosqueId"] as string;
+  const router = useRouter();
+  const { canAccess } = useMosque();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const isAdmin = canAccess(ADMIN_ONLY_ROLES);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  // Fetch mosque details
+  const { data: mosque, isLoading } = useQuery<any>({
+    queryKey: ["mosque-detail", mosqueId],
+    queryFn: () => apiClient.get<any>(`/mosques/${mosqueId}`),
+    enabled: isAdmin,
+  });
+
+  const [name, setName] = React.useState("");
+  const [address, setAddress] = React.useState("");
+  const [timezone, setTimezone] = React.useState("Asia/Dhaka");
+  const [fiscalYearStart, setFiscalYearStart] = React.useState(1);
+  const [isTransparencyEnabled, setIsTransparencyEnabled] = React.useState(true);
+
+  // Archive request modal state
+  const [isArchiveRequestModalOpen, setIsArchiveRequestModalOpen] = React.useState(false);
+  const [archiveReason, setArchiveReason] = React.useState("");
+
+  React.useEffect(() => {
+    if (mosque) {
+      setName(mosque.name || "");
+      setAddress(mosque.address || "");
+      setTimezone(mosque.timezone || "Asia/Dhaka");
+      setFiscalYearStart(mosque.fiscalYearStart || 1);
+      setIsTransparencyEnabled(mosque.isTransparencyPageEnabled ?? true);
+    }
+  }, [mosque]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.patch(`/mosques/${mosqueId}`, {
+        name,
+        address: address || null,
+        timezone,
+        fiscalYearStart,
+        confirmFiscalYearChange: true,
+        isTransparencyPageEnabled: isTransparencyEnabled,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Mosque profile and settings updated.");
+      queryClient.invalidateQueries({ queryKey: ["mosque-detail", mosqueId] });
+      queryClient.invalidateQueries({ queryKey: ["user-mosques"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update settings");
+    },
+  });
+
+  // Direct archive mutation (Super Admin only)
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.post(`/mosques/${mosqueId}/archive`);
+    },
+    onSuccess: () => {
+      toast.success("Mosque workspace archived.");
+      queryClient.invalidateQueries({ queryKey: ["user-mosques"] });
+      router.push("/mosques");
+    },
+    onError: (err: any) => {
+      // If a non-super-admin tries to directly archive and receives 403, open archive request modal
+      if (err.code === "FORBIDDEN_SUPER_ADMIN_REQUIRED") {
+        toast.info(
+          "Direct mosque archiving requires Super Admin authorization. You can submit an archive request instead."
+        );
+        setIsArchiveRequestModalOpen(true);
+        return;
+      }
+      toast.error(err.message || "Cannot archive mosque (check outstanding balances)");
+    },
+  });
+
+  // Archive request mutation (Mosque Admin)
+  const requestArchiveMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.post(`/mosques/${mosqueId}/archive-request`, {
+        reason: archiveReason.trim() || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Archive request submitted for Super Admin review.");
+      setIsArchiveRequestModalOpen(false);
+      setArchiveReason("");
+      queryClient.invalidateQueries({ queryKey: ["mosque-detail", mosqueId] });
+      queryClient.invalidateQueries({ queryKey: ["user-mosques"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to submit archive request");
+    },
+  });
+
+  // Cancel archive request mutation (Mosque Admin)
+  const cancelArchiveRequestMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.delete(`/mosques/${mosqueId}/archive-request`);
+    },
+    onSuccess: () => {
+      toast.success("Mosque archive request cancelled.");
+      queryClient.invalidateQueries({ queryKey: ["mosque-detail", mosqueId] });
+      queryClient.invalidateQueries({ queryKey: ["user-mosques"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to cancel archive request");
+    },
+  });
+
+  // Reject archive request mutation (Super Admin)
+  const rejectArchiveRequestMutation = useMutation({
+    mutationFn: async () => {
+      return apiClient.post(`/mosques/${mosqueId}/archive-request/reject`);
+    },
+    onSuccess: () => {
+      toast.success("Mosque archive request rejected.");
+      queryClient.invalidateQueries({ queryKey: ["mosque-detail", mosqueId] });
+      queryClient.invalidateQueries({ queryKey: ["user-mosques"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to reject archive request");
+    },
+  });
+
+  if (!isAdmin) {
+    return (
+      <div className="py-20 text-center text-gray-500">
+        <Lock className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+        <h3 className="text-lg font-bold text-gray-800">Restricted Access</h3>
+        <p className="text-sm text-gray-500 mt-1">
+          Workspace settings can only be managed by Mosque Administrators.
+        </p>
+      </div>
+    );
+  }
+
+  const isArchiveRequested = Boolean(mosque?.archiveRequested);
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          Mosque Workspace Settings
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage mosque identity, public transparency presence, and fiscal year configurations.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="py-16 text-center text-gray-400">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#006B5B] mb-2" />
+          Loading workspace settings...
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Pending Archive Request Alert Banner */}
+          {isArchiveRequested && (
+            <div className="bg-amber-50/90 rounded-xl border border-amber-300 p-6 space-y-4">
+              <div className="flex items-start space-x-3 text-amber-900">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-sm">Mosque Workspace Archive Requested</h4>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900">
+                      Pending Super Admin Review
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-800 mt-1">
+                    An archive request for this workspace has been submitted to platform administrators.
+                    While this request is pending, all regular operations remain active.
+                  </p>
+                  {mosque.archiveRequestReason && (
+                    <div className="mt-3 p-3 bg-amber-100/70 rounded-lg border border-amber-200/80 text-xs text-amber-900">
+                      <span className="font-semibold block text-[11px] uppercase tracking-wider text-amber-800 mb-1">
+                        Reason Provided:
+                      </span>
+                      {mosque.archiveRequestReason}
+                    </div>
+                  )}
+                  {mosque.archiveRequestedAt && (
+                    <p className="text-[11px] text-amber-700 mt-2">
+                      Submitted on{" "}
+                      {new Date(mosque.archiveRequestedAt).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-amber-200/60">
+                {isSuperAdmin ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => rejectArchiveRequestMutation.mutate()}
+                      disabled={rejectArchiveRequestMutation.isPending || archiveMutation.isPending}
+                    >
+                      {rejectArchiveRequestMutation.isPending ? "Rejecting..." : "Reject Archive Request"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        if (confirm(`Approve archive request and archive "${mosque.name}"?`)) {
+                          archiveMutation.mutate();
+                        }
+                      }}
+                      disabled={archiveMutation.isPending || rejectArchiveRequestMutation.isPending}
+                    >
+                      {archiveMutation.isPending ? "Archiving..." : "Approve & Archive Workspace"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-amber-900 border-amber-400 hover:bg-amber-100"
+                    onClick={() => cancelArchiveRequestMutation.mutate()}
+                    disabled={cancelArchiveRequestMutation.isPending}
+                  >
+                    {cancelArchiveRequestMutation.isPending ? "Cancelling..." : "Cancel Archive Request"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* General Information */}
+          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-900 flex items-center">
+              <Building2 className="w-4 h-4 mr-2 text-[#006B5B]" />
+              Mosque Profile & Identification
+            </h3>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Mosque Name
+              </label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Baitul Aman Jame Masjid"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Public URL Slug
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value={mosque?.slug || "mosque-slug"}
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500 font-mono"
+                />
+                {mosque?.slug && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`/m/${mosque.slug}`, "_blank")}
+                    className="shrink-0 text-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                    Visit Public Page
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400">
+                The public web address for your congregation. Immutable once provisioned.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Physical Address
+              </label>
+              <Input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. Mirpur-10, Dhaka 1216"
+              />
+            </div>
+          </div>
+
+          {/* Fiscal & Regional Configurations */}
+          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-900 flex items-center">
+              <Settings className="w-4 h-4 mr-2 text-[#006B5B]" />
+              Accounting & Regional Settings
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Timezone
+                </label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006B5B]"
+                >
+                  <option value="Asia/Dhaka">Asia/Dhaka (GMT+6)</option>
+                  <option value="Asia/Kolkata">Asia/Kolkata (GMT+5:30)</option>
+                  <option value="Asia/Karachi">Asia/Karachi (GMT+5)</option>
+                  <option value="Asia/Riyadh">Asia/Riyadh (GMT+3)</option>
+                  <option value="UTC">UTC (Universal Time)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Fiscal Year Starting Month
+                </label>
+                <select
+                  value={fiscalYearStart}
+                  onChange={(e) => setFiscalYearStart(parseInt(e.target.value, 10))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006B5B]"
+                >
+                  <option value={1}>January (Calendar Year)</option>
+                  <option value={7}>July (Govt. Fiscal Year)</option>
+                  <option value={4}>April</option>
+                  <option value={9}>September</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Public Transparency Portal Switch */}
+          <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-gray-900 flex items-center">
+                    <Globe className="w-4 h-4 mr-2 text-emerald-600" />
+                    Public Financial Transparency Page
+                  </h3>
+                  <Badge
+                    variant={isTransparencyEnabled ? "success" : "secondary"}
+                    className="text-[10px]"
+                  >
+                    {isTransparencyEnabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-gray-500 max-w-xl">
+                  Enable public access to audited high-level summaries of collections,
+                  fund balances, and expenses. Individual personal account numbers and internal IDs
+                  are automatically masked.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs font-semibold text-gray-600">
+                  {isTransparencyEnabled ? "Public" : "Private"}
+                </span>
+                <Switch
+                  aria-label="Toggle Public Financial Transparency Page"
+                  checked={isTransparencyEnabled}
+                  onCheckedChange={setIsTransparencyEnabled}
+                />
+              </div>
+            </div>
+
+            {isTransparencyEnabled && mosque?.slug && (
+              <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs text-emerald-700 font-medium flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+                  Public transparency portal is live for your congregation.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/m/${mosque.slug}`, "_blank")}
+                  className="text-xs border-[#006B5B]/30 text-[#006B5B] hover:bg-[#E6F4F0] self-start sm:self-auto"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                  View Public Page
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={() => updateMutation.mutate()}
+              disabled={updateMutation.isPending}
+              className="bg-[#006B5B] hover:bg-[#005246] text-white"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving Settings...
+                </>
+              ) : (
+                "Save Workspace Settings"
+              )}
+            </Button>
+          </div>
+
+          {/* Danger Zone */}
+          {!isArchiveRequested && (
+            <div className="bg-red-50/60 rounded-xl border border-red-200 p-6 space-y-4">
+              <div className="flex items-start space-x-3 text-red-900">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-sm">
+                    {isSuperAdmin ? "Archive Mosque Workspace" : "Request Mosque Workspace Archive"}
+                  </h4>
+                  <p className="text-xs text-red-700 mt-1">
+                    {isSuperAdmin
+                      ? "Archiving deactivates this mosque instance. Archiving is only permitted when all account balances have zero remaining liabilities and assets."
+                      : "Direct archiving is restricted to platform Super Administrators. Submitting an archive request forwards your request with an optional justification for administrator review."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                {isSuperAdmin ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-xs text-red-700 border-red-300 hover:bg-red-100/60"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "Are you completely certain you wish to archive this mosque workspace? This cannot be undone if balances exist."
+                        )
+                      ) {
+                        archiveMutation.mutate();
+                      }
+                    }}
+                    disabled={archiveMutation.isPending}
+                  >
+                    {archiveMutation.isPending ? "Archiving..." : "Archive Workspace"}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-xs text-red-700 border-red-300 hover:bg-red-100/60"
+                    onClick={() => setIsArchiveRequestModalOpen(true)}
+                  >
+                    Request Workspace Archive
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Archive Request Dialog */}
+      <Modal
+        isOpen={isArchiveRequestModalOpen}
+        onClose={() => {
+          setIsArchiveRequestModalOpen(false);
+          setArchiveReason("");
+        }}
+        title="Request Mosque Workspace Archive"
+        description="Direct archiving requires platform Super Admin authorization. Submit an archive request for administrator review."
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800 space-y-1">
+            <p className="font-semibold">Before submitting your request:</p>
+            <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-amber-700">
+              <li>Ensure all accounts and funds have zero remaining balances.</li>
+              <li>Revoke or resolve any unresolved pending member invitations.</li>
+            </ul>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              Reason / Justification (Optional)
+            </label>
+            <textarea
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+              placeholder="e.g. Mosque congregation merged with an adjacent community..."
+              maxLength={500}
+              rows={4}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006B5B] placeholder:text-gray-400 resize-none"
+            />
+            <div className="flex justify-between items-center text-[11px] text-gray-400">
+              <span>Maximum 500 characters</span>
+              <span>{archiveReason.length}/500</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsArchiveRequestModalOpen(false);
+                setArchiveReason("");
+              }}
+              disabled={requestArchiveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+              onClick={() => requestArchiveMutation.mutate()}
+              disabled={requestArchiveMutation.isPending}
+            >
+              {requestArchiveMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting Request...
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  Submit Archive Request
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

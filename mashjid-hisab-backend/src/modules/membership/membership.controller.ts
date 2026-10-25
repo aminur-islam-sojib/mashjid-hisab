@@ -1,0 +1,188 @@
+// ---------------------------------------------------------------------------
+// Membership Controller — HTTP Adapter Layer
+// ---------------------------------------------------------------------------
+
+import type { Request, Response } from "express";
+import { catchAsync } from "../../utils/catchAsync.js";
+import { sendResponse } from "../../utils/sendResponse.js";
+import { validateMosqueIdParam } from "../mosque/mosque.validation.js";
+import {
+  validateGetMosqueMembersQuery,
+  validateMembershipIdParam,
+  validateUpdateMembershipInput,
+  validateCreateMembershipInviteInput,
+  validateInviteIdParam,
+  validateAcceptMembershipInviteInput,
+  validateDirectCreateMemberInput,
+} from "./membership.validation.js";
+import {
+  getMosqueMembers,
+  updateMembership,
+  removeMember,
+  leaveMosque,
+  createMembershipInvite,
+  acceptMembershipInvite,
+  directCreateMember,
+} from "./membership.service.js";
+
+/**
+ * GET /api/mosques/:mosqueId/members
+ * Access: Authenticated + MOSQUE_ADMIN, TREASURER, COMMITTEE_MEMBER
+ *
+ * Lists all Memberships for the mosque with user name/role/status — the admin's people-management screen.
+ */
+export const getMosqueMembersHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const mosqueId = req.mosqueId || validateMosqueIdParam(req.params["mosqueId"]);
+    const query = validateGetMosqueMembersQuery(req.query);
+
+    const members = await getMosqueMembers(mosqueId, query);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: "Mosque members retrieved successfully.",
+      data: members,
+    });
+  },
+);
+
+/**
+ * PATCH /api/mosques/:mosqueId/members/:membershipId
+ * Access: Authenticated + MOSQUE_ADMIN
+ *
+ * Changes a member's role or status (e.g. promote to TREASURER, SUSPENDED).
+ * Rejects with LAST_ADMIN_PROTECTED if this would demote the mosque's only MOSQUE_ADMIN.
+ */
+export const updateMembershipHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const mosqueId = req.mosqueId || validateMosqueIdParam(req.params["mosqueId"]);
+    const membershipId = validateMembershipIdParam(req.params["membershipId"]);
+    const input = validateUpdateMembershipInput(req.body);
+
+    const updated = await updateMembership(mosqueId, membershipId, input);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: "Membership updated successfully.",
+      data: updated,
+    });
+  },
+);
+
+/**
+ * DELETE /api/mosques/:mosqueId/members/me
+ * Access: Authenticated (self)
+ *
+ * Lets a member leave voluntarily.
+ * Rejects with LAST_ADMIN_PROTECTED if a lone MOSQUE_ADMIN attempts to leave.
+ */
+export const leaveMosqueHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const userId = req.user!.sub;
+    const mosqueId = req.mosqueId || validateMosqueIdParam(req.params["mosqueId"]);
+
+    const result = await leaveMosque(mosqueId, userId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: "You have left the mosque successfully.",
+      data: result,
+    });
+  },
+);
+
+/**
+ * DELETE /api/mosques/:mosqueId/members/:membershipId
+ * Access: Authenticated + MOSQUE_ADMIN
+ *
+ * Removes a member from the mosque (deletes the Membership row).
+ * Rejects with LAST_ADMIN_PROTECTED if this would remove the mosque's only MOSQUE_ADMIN.
+ */
+export const removeMemberHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const mosqueId = req.mosqueId || validateMosqueIdParam(req.params["mosqueId"]);
+    const membershipId = validateMembershipIdParam(req.params["membershipId"]);
+
+    const result = await removeMember(mosqueId, membershipId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: "Member removed from mosque successfully.",
+      data: result,
+    });
+  },
+);
+
+/**
+ * POST /api/memberships/invite
+ * Access: Authenticated + MOSQUE_ADMIN or TREASURER
+ *
+ * Creates a MembershipInvite for the target mosque by email/phone.
+ */
+export const createMembershipInviteHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const callerUserId = req.user!.sub;
+    const fallbackMosqueId =
+      req.mosqueId ||
+      (typeof req.params["mosqueId"] === "string" ? req.params["mosqueId"] : undefined);
+    const input = validateCreateMembershipInviteInput(req.body, fallbackMosqueId);
+
+    const result = await createMembershipInvite(callerUserId, input);
+
+    sendResponse(res, {
+      statusCode: 201,
+      message: "Membership invitation created successfully.",
+      data: {
+        ...result.invite,
+        token: result.token,
+      },
+    });
+  },
+);
+
+/**
+ * POST /api/memberships/invites/:id/accept
+ * Access: Authenticated, matching invite contact
+ *
+ * Converts the invite into an ACTIVE Membership.
+ */
+export const acceptMembershipInviteHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const callerUserId = req.user!.sub;
+    const inviteId = validateInviteIdParam(req.params["id"]);
+    const input = validateAcceptMembershipInviteInput(req.body);
+
+    const result = await acceptMembershipInvite(callerUserId, inviteId, input);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: result.message,
+      data: result.membership,
+    });
+  },
+);
+
+/**
+ * POST /api/mosques/:mosqueId/members/direct
+ * Access: Authenticated + FINANCIAL_OPERATOR_ROLES (MOSQUE_ADMIN, TREASURER)
+ *
+ * Creates User + Profile + Membership(ACTIVE) in one transaction, by email/phone
+ * + password (admin-set or auto-generated). Sets mustChangePassword: true.
+ * Optionally links to an existing FamilyMember.
+ */
+export const directCreateMemberHandler = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
+    const callerUserId = req.user!.sub;
+    const mosqueId = req.mosqueId || validateMosqueIdParam(req.params["mosqueId"]);
+    const input = validateDirectCreateMemberInput(req.body);
+
+    const result = await directCreateMember(callerUserId, mosqueId, input);
+
+    sendResponse(res, {
+      statusCode: 201,
+      message: "Member account created successfully.",
+      data: result,
+    });
+  },
+);
+

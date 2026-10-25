@@ -1,0 +1,16 @@
+// =============================================================================
+// schema.prisma — generator + datasource (single source of truth)
+// All other .prisma files in this directory are auto-discovered by Prisma 7's
+// multi-file schema feature and merged at build-time.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../generated/prisma"
+}
+
+// Connection URL is configured in prisma7.config.ts → datasource.url.
+// In Prisma 7 the `url` field is no longer supported inside schema files.
+datasource db {
+  provider = "postgresql"
+}

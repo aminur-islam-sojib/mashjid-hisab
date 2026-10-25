@@ -1,0 +1,76 @@
+// =============================================================================
+// mosque.prisma — Mosque model (the SaaS tenant)
+//
+// Design notes:
+//  • Each mosque is an independent tenant. All tenant-scoped data is reached
+//    through Membership, never by embedding mosqueId in User/Profile.
+//  • `slug` drives the public URL (/m/{slug}) and the switch-mosque UI,
+//    so it must be unique and URL-safe.
+//  • `fiscalYearStart` lets each mosque align financial reports to its own
+//    calendar (e.g. July for Bangladesh Govt. fiscal year).
+// =============================================================================
+
+model Mosque {
+  id      String  @id @default(cuid())
+  name    String
+  /// URL-safe identifier used in /m/{slug} routes and the switch-mosque UI.
+  slug    String  @unique
+  address String?
+
+  /// IANA timezone, e.g. "Asia/Dhaka". Used for prayer-time calculations and
+  /// report date boundaries.
+  timezone String @default("Asia/Dhaka")
+
+  /// Month number (1–12) at which the mosque's fiscal year begins.
+  /// Default: 7 (July), matching the Bangladesh Government fiscal calendar.
+  fiscalYearStart Int @default(7)
+
+  /// Accounting books closed up to this date. Transactions on or before this date are frozen.
+  closedPeriodUntil DateTime?
+
+  /// Expense amount threshold (in minor units / poisha) above which treasurer spending requires admin approval.
+  expenseApprovalLimit BigInt?
+
+  /// Public transparency toggle — controls whether /api/public/mosques/:slug public transparency endpoints are accessible
+  isTransparencyPageEnabled Boolean   @default(false)
+
+  /// Public transparency toggle — backward compatibility
+  publicTransparency        Boolean   @default(false)
+
+  // -- Soft delete / lifecycle & Super Admin Archive Request -----------------
+  isArchived             Boolean   @default(false)
+  archivedAt             DateTime?
+  archiveRequested       Boolean   @default(false)
+  archiveRequestedAt     DateTime?
+  archiveRequestReason   String?
+  archiveRequestedById   String?
+
+  // -- Timestamps -----------------------------------------------------------
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // -- Relations ------------------------------------------------------------
+  memberships Membership[]
+  invites     MembershipInvite[]
+  funds       Fund[]
+  accounts    Account[]
+  categories  Category[]
+  families    Family[]
+  inviteLinks MosqueInviteLink[]
+  donations   Donation[]
+  expenses    Expense[]
+  transfers   Transfer[]
+  campaigns          Campaign[]
+  pledges            Pledge[]
+  chandaPlans        ChandaPlan[]
+  dues               Due[]
+  collectionSessions CollectionSession[]
+  periodAuditLogs        PeriodAuditLog[]
+  accountReconciliations AccountReconciliation[]
+  reportExports          ReportExport[]
+  attachments            Attachment[]
+  auditLogs              AuditLog[]
+  idempotencyKeys        IdempotencyKey[]
+
+  @@map("mosques")
+}

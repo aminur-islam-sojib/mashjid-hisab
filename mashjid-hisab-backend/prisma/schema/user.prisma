@@ -1,0 +1,102 @@
+// =============================================================================
+// user.prisma — User & Profile models
+//
+// Design notes:
+//  • User   = pure auth identity (credentials, flags, session versioning).
+//  • Profile = 1-to-1 personal/display data — kept separate to let auth paths
+//    skip the join entirely.
+//  • Neither model stores mosqueId. Mosque context lives exclusively on
+//    Membership — the canonical multi-tenancy join table.
+//  • sessionVersion is a lightweight revocation stamp: incrementing it on
+//    password reset, logout-everywhere, or role change invalidates every
+//    refresh token that carries an older value without a DB scan.
+// =============================================================================
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String? @unique
+  phone        String? @unique
+  passwordHash String
+
+  // -- Verification / account state ----------------------------------------
+  emailVerified      Boolean    @default(false)
+  mustChangePassword Boolean    @default(false)
+  status             UserStatus @default(ACTIVE)
+
+  // -- Platform role (SUPER_ADMIN; all tenant-scoped roles live on Membership)
+  role          Role?
+
+  // -- Localisation ---------------------------------------------------------
+  /// IETF locale tag, e.g. "bn", "en". Drives UI language & number formats.
+  locale String @default("bn")
+
+  // -- Session revocation stamp ----------------------------------------------
+  /// Bumped on: password reset | logout-everywhere | role/membership change.
+  /// Refresh tokens carrying a lower value are rejected immediately.
+  sessionVersion Int @default(1)
+
+  // -- Timestamps -----------------------------------------------------------
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // -- Relations ------------------------------------------------------------
+  profile  Profile?
+  /// All mosque memberships this user holds (zero or many).
+  memberships             Membership[]          @relation("UserMemberships")
+  /// Invites this user has sent to others.
+  sentInvites             Membership[]          @relation("InvitedBy")
+  sentMembershipInvites   MembershipInvite[]    @relation("InviteSentBy")
+  createdInviteLinks      MosqueInviteLink[]    @relation("InviteLinkCreator")
+
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  recordedDonations       Donation[]            @relation("DonationRecorder")
+  postedDonations         Donation[]            @relation("DonationPoster")
+  voidedDonations         Donation[]            @relation("DonationVoider")
+  recordedExpenses        Expense[]             @relation("ExpenseRecorder")
+  postedExpenses          Expense[]             @relation("ExpensePoster")
+  approvedExpenses        Expense[]             @relation("ExpenseApprover")
+  voidedExpenses          Expense[]             @relation("ExpenseVoider")
+  createdTransfers        Transfer[]            @relation("TransferCreator")
+  voidedTransfers         Transfer[]            @relation("TransferVoider")
+  rejectedDonations       Donation[]            @relation("DonationRejecter")
+  rejectedExpenses        Expense[]             @relation("ExpenseRejecter")
+  createdCampaigns        Campaign[]            @relation("CampaignCreator")
+  closedCampaigns         Campaign[]            @relation("CampaignCloser")
+  createdPledges          Pledge[]              @relation("PledgeCreator")
+  cancelledPledges        Pledge[]              @relation("PledgeCanceller")
+  createdChandaPlans      ChandaPlan[]          @relation("ChandaPlanCreator")
+  waivedDues              Due[]                 @relation("DueWaiver")
+  countedCollections      CollectionSession[]   @relation("CollectionCounter")
+  verifiedCollections     CollectionSession[]   @relation("CollectionVerifier")
+  reconciledAccounts      AccountReconciliation[] @relation("AccountReconciler")
+  periodAudits            PeriodAuditLog[]        @relation("PeriodAuditor")
+  requestedExports        ReportExport[]          @relation("ReportExporter")
+  uploadedAttachments     Attachment[]            @relation("AttachmentUploader")
+  performedAudits         AuditLog[]              @relation("AuditActor")
+  idempotencyKeys         IdempotencyKey[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Profile — optional personal / display information
+// Fetched only when the UI needs it; never required for auth hot paths.
+// ---------------------------------------------------------------------------
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  avatarUrl   String?
+  bio         String?
+  address     String?
+  dateOfBirth DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profiles")
+}

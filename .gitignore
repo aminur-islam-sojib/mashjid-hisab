@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.*
+
+# Build Outputs
+.next/
+*/.next/
+out/
+*/out/
+build/
+*/build/
+dist/
+*/dist/
+
+# Prisma Generated Client & Uploads
+mashjid-hisab-backend/generated/prisma/
+mashjid-hisab-backend/uploads/
+uploads/
+
+# Environment files
+.env
+.env*.local
+.env.production
+.env.development
+*.env
+*.env.local
+!*.env.example
+!*/.env.example
+
+# Testing & Coverage
+coverage/
+*/coverage/
+
+# Logs & Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# System & IDE
+.DS_Store
+Thumbs.db
+*.pem
+.turbo/
+*.tsbuildinfo

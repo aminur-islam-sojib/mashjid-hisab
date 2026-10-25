@@ -1,0 +1,296 @@
+// =============================================================================
+// enums.prisma — all application-wide enum definitions
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Role
+// SUPER_ADMIN is a platform-level role and is never scoped to a mosque.
+// All other roles live on a Membership row.
+// ---------------------------------------------------------------------------
+enum Role {
+  SUPER_ADMIN // platform-level — not mosque-scoped
+  MOSQUE_ADMIN // full control within a single mosque
+  TREASURER // financial records & reporting
+  STAFF // day-to-day operations
+  COMMITTEE_MEMBER // advisory / governance body
+  MEMBER // general mosque member
+}
+
+// ---------------------------------------------------------------------------
+// MembershipStatus
+// Drives access control: only ACTIVE memberships are allowed through guards.
+// ---------------------------------------------------------------------------
+enum MembershipStatus {
+  PENDING // created directly with a userId already known (rare path)
+  ACTIVE // full access granted
+  SUSPENDED // access revoked without deleting audit history
+  REJECTED // invite explicitly declined by the invitee
+}
+
+// ---------------------------------------------------------------------------
+// UserStatus
+// Platform-level account state for the User.
+// ---------------------------------------------------------------------------
+enum UserStatus {
+  ACTIVE // account in good standing
+  INACTIVE // voluntarily deactivated or dormant
+  BLOCKED // banned / administratively blocked platform-wide
+}
+
+// ---------------------------------------------------------------------------
+// InviteStatus
+// Lifecycle of an invitation to join a mosque.
+// ---------------------------------------------------------------------------
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
+// FundType
+// Classification of financial funds by Shariah and operational purpose.
+// ---------------------------------------------------------------------------
+enum FundType {
+  GENERAL // unrestricted — spendable on anything
+  ZAKAT // restricted — only the 8 shariah categories
+  SADAQAH
+  CONSTRUCTION
+  MADRASA
+  QURBANI
+  WAQF // property/rent income — disbursement-only by policy
+  IFTAR
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// AccountType
+// Physical/digital location where money is held.
+// ---------------------------------------------------------------------------
+enum AccountType {
+  CASH
+  BANK
+  MOBILE_WALLET // bKash, Nagad, etc.
+  CARD
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// CategoryType
+// Direction of cash flow.
+// ---------------------------------------------------------------------------
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+// ---------------------------------------------------------------------------
+// FamilyRelation
+// How a FamilyMember relates to the family's head.
+// ---------------------------------------------------------------------------
+enum FamilyRelation {
+  SPOUSE
+  SON
+  DAUGHTER
+  FATHER
+  MOTHER
+  SIBLING
+  GRANDPARENT
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// DonationStatus
+// Lifecycle of a donation record.
+// ---------------------------------------------------------------------------
+enum DonationStatus {
+  PENDING
+  POSTED
+  REJECTED
+  VOIDED
+}
+
+// ---------------------------------------------------------------------------
+// DonationSource
+// Channel through which the donation was collected.
+// ---------------------------------------------------------------------------
+enum DonationSource {
+  CASH_BOX
+  MEMBER
+  ONLINE
+  BANK
+}
+
+// ---------------------------------------------------------------------------
+// ExpenseStatus
+// Lifecycle of an expense entry.
+// ---------------------------------------------------------------------------
+enum ExpenseStatus {
+  PENDING           // Saved by STAFF, pending review
+  PENDING_APPROVAL  // Recorded by TREASURER above mosque approval limit, requires ADMIN
+  POSTED            // Approved & posted to the ledger
+  REJECTED          // Rejected by admin
+  VOIDED            // Voided with reversal entry
+}
+
+// ---------------------------------------------------------------------------
+// TransferLeg
+// Direction of the ledger entry within a transfer operation.
+// ---------------------------------------------------------------------------
+enum TransferLeg {
+  FROM // Source / outflow leg
+  TO   // Destination / inflow leg
+}
+
+// ---------------------------------------------------------------------------
+// TransferStatus
+// Lifecycle of a transfer entry.
+// ---------------------------------------------------------------------------
+enum TransferStatus {
+  POSTED // Active and posted to the ledger
+  VOIDED // Reversal created and original voided
+}
+
+// ---------------------------------------------------------------------------
+// CampaignStatus
+// Lifecycle of a fundraising campaign.
+// ---------------------------------------------------------------------------
+enum CampaignStatus {
+  ACTIVE // Accepting donations
+  CLOSED // Manually closed; history frozen, no new donations accepted
+}
+
+// ---------------------------------------------------------------------------
+// PledgeStatus
+// Lifecycle of a pledge commitment.
+// ---------------------------------------------------------------------------
+enum PledgeStatus {
+  OPEN       // Active pledge, no payments made yet
+  PARTIAL    // Partially paid (0 < paid < amount)
+  FULFILLED  // Fully paid (paid >= amount)
+  CANCELLED  // Cancelled by pledger or admin
+}
+
+// ---------------------------------------------------------------------------
+// ChandaFrequency
+// Recurring frequency for chanda plans.
+// ---------------------------------------------------------------------------
+enum ChandaFrequency {
+  MONTHLY
+  YEARLY
+}
+
+// ---------------------------------------------------------------------------
+// ChandaPlanStatus
+// Lifecycle of a recurring chanda plan.
+// ---------------------------------------------------------------------------
+enum ChandaPlanStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+// ---------------------------------------------------------------------------
+// DueStatus
+// Lifecycle of an individual periodic chanda due.
+// ---------------------------------------------------------------------------
+enum DueStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  WAIVED
+}
+
+// ---------------------------------------------------------------------------
+// CollectionStatus
+// Lifecycle of an in-person collection counting session (Jummah, Eid, etc.).
+// ---------------------------------------------------------------------------
+enum CollectionStatus {
+  OPEN
+  VERIFIED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// PeriodAction
+// Audit action performed on an accounting period (month lock/unlock).
+// ---------------------------------------------------------------------------
+enum PeriodAction {
+  CLOSED
+  REOPENED
+}
+
+// ---------------------------------------------------------------------------
+// ExportFormat
+// Supported output formats for financial and operational report exports.
+// ---------------------------------------------------------------------------
+enum ExportFormat {
+  CSV
+  XLSX
+  PDF
+}
+
+// ---------------------------------------------------------------------------
+// ExportStatus
+// Lifecycle of an async report export job.
+// ---------------------------------------------------------------------------
+enum ExportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// ReportType
+// Available report definitions supported by the export engine.
+// ---------------------------------------------------------------------------
+enum ReportType {
+  DASHBOARD
+  BALANCES
+  INCOME_EXPENSE
+  FUND_STATEMENT
+  ACCOUNT_STATEMENT
+  DONORS
+  FISCAL_YEAR
+}
+
+// ---------------------------------------------------------------------------
+// AuditAction
+// Actions performed on financial transactions and ledger records.
+// ---------------------------------------------------------------------------
+enum AuditAction {
+  CREATE
+  APPROVE
+  VOID
+  WAIVE
+  REJECT
+  CLOSE_PERIOD
+  REOPEN_PERIOD
+  RECONCILE
+  TRANSFER
+}
+
+// ---------------------------------------------------------------------------
+// AuditEntity
+// Type of financial entity affected by the action.
+// ---------------------------------------------------------------------------
+enum AuditEntity {
+  DONATION
+  EXPENSE
+  TRANSFER
+  DUE
+  PERIOD
+  COLLECTION
+  ACCOUNT
+}
+
+// ---------------------------------------------------------------------------
+// IdempotencyStatus
+// Lifecycle state of an idempotent request record.
+// ---------------------------------------------------------------------------
+enum IdempotencyStatus {
+  PROCESSING
+  RESOLVED
+  FAILED
+}

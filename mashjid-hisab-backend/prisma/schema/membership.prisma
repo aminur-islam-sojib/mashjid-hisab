@@ -1,0 +1,92 @@
+// =============================================================================
+// membership.prisma — Membership & MembershipInvite models
+//
+// Design notes:
+//  • One row per (user, mosque) pair — the @@unique constraint enforces this.
+//  • This is the *only* place mosqueId is stored for a user; it is never
+//    denormalised onto User or Profile.
+//  • `role`   — governs what the user can do within this mosque.
+//  • `status` — governs whether the user can act at all (ACTIVE = yes).
+//  • `invitedById` — nullable audit trail: null when the user self-registered
+//    with a mosqueId or created the mosque themselves.
+//  • @@index([mosqueId]) — all "list members of mosque X" queries hit this
+//    index first instead of scanning the whole table.
+// =============================================================================
+
+model Membership {
+  id String @id @default(cuid())
+
+  // -- Tenant side ----------------------------------------------------------
+  userId String
+  user   User   @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  mosqueId String
+  mosque   Mosque @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+
+  // -- Access control -------------------------------------------------------
+  role   Role             @default(MEMBER)
+  status MembershipStatus @default(PENDING)
+
+  // -- Invite audit trail ---------------------------------------------------
+  /// The user who sent this invite. Null when the membership was self-created
+  /// (mosque founder) or created via a registration code rather than a direct
+  /// invite.
+  invitedById String?
+  invitedBy   User?   @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  // -- Timestamps -----------------------------------------------------------
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // -- Family (optional, one of either, never both) --------------------------
+  /// Set if this Membership is the head of a Family. A Membership can head
+  /// at most one Family (enforced by Family.headMembershipId being @unique).
+  headOfFamily       Family?       @relation("FamilyHead")
+  /// Set if this Membership was created for someone who started as a light
+  /// FamilyMember record and later got their own login (Stage 3).
+  linkedFamilyMember FamilyMember? @relation("FamilyMemberLink")
+
+  donations          Donation[]
+  pledges            Pledge[]
+  chandaPlans        ChandaPlan[]
+  dues               Due[]
+
+  // -- Constraints & indices ------------------------------------------------
+  /// A user may not hold more than one membership per mosque.
+  @@unique([userId, mosqueId])
+  /// Accelerates the common query pattern: "list all members of mosque X".
+  @@index([mosqueId])
+  @@map("memberships")
+}
+
+// ----------------------------------------------------------------------------
+// MembershipInvite — an offer to join, before a Membership (or sometimes
+// even a User) exists. invite → accept converts this into a real Membership.
+// ----------------------------------------------------------------------------
+
+model MembershipInvite {
+  id String @id @default(cuid())
+
+  mosqueId String
+  mosque   Mosque @relation(fields: [mosqueId], references: [id], onDelete: Cascade)
+
+  // The invited person, by contact info — they may not have a User yet.
+  email String?
+  phone String?
+  role  Role    @default(MEMBER)
+
+  tokenHash String       @unique // raw token goes in the emailed/SMS link only
+  status    InviteStatus @default(PENDING)
+
+  invitedById String
+  invitedBy   User   @relation("InviteSentBy", fields: [invitedById], references: [id])
+
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([mosqueId])
+  @@index([email])
+  @@map("membership_invites")
+}
