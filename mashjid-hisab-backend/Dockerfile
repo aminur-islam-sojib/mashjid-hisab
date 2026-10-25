@@ -26,3 +26,4 @@ ENV PORT=5000
 ENV NODE_ENV=production
 
 CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx src/server.ts"]
+
