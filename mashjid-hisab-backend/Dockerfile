@@ -17,7 +17,7 @@ COPY . .
 # Ensure upload directory exists
 RUN mkdir -p uploads
 
-EXPOSE 5000
+EXPOSE 5000 10000
 
 ENV PORT=5000
 ENV NODE_ENV=production

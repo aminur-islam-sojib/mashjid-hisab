@@ -36,6 +36,10 @@ app.get("/", (_req: Request, res: Response) => {
   res.json({ success: true, message: "Mashjid Hisab API is running." });
 });
 
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use("/api", apiRouter);
 
 // ---------------------------------------------------------------------------
