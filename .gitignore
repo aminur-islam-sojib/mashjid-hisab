@@ -26,8 +26,7 @@ uploads/
 .env.development
 *.env
 *.env.local
-!*.env.example
-!*/.env.example
+!**/.env.example
 
 # Testing & Coverage
 coverage/

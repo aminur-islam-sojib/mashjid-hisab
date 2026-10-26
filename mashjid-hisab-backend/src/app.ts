@@ -22,9 +22,36 @@ const app: Application = express();
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
+
+const allowedOrigins: string[] = [
+  config.CLIENT_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
+if (config.CLIENT_URL && config.CLIENT_URL.includes(",")) {
+  config.CLIENT_URL.split(",").forEach((url) => allowedOrigins.push(url.trim()));
+}
+
 app.use(
   cors({
-    origin: config.CLIENT_URL,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      try {
+        const parsed = new URL(origin);
+        if (
+          allowedOrigins.includes(origin) ||
+          parsed.hostname.endsWith(".vercel.app") ||
+          parsed.hostname === "localhost" ||
+          parsed.hostname === "127.0.0.1"
+        ) {
+          return callback(null, true);
+        }
+      } catch {
+        // Ignore parsing errors
+      }
+      return callback(null, false);
+    },
     credentials: true,
   }),
 );
